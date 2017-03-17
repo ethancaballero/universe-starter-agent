@@ -8,6 +8,7 @@ import scipy.signal
 import threading
 import distutils.version
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
+use_tf100_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('1.0.0')
 
 def discount(x, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
@@ -171,10 +172,16 @@ should be computed.
         self.task = task
         worker_device = "/job:worker/task:{}/cpu:0".format(task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
-            with tf.variable_scope("global"):
-                self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
-                self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
-                                                   trainable=False)
+            if use_tf100_api:
+                with tf.variable_scope("global", use_resource=True):
+                    self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
+                    self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
+                                                       trainable=False)
+            else:
+                with tf.variable_scope("global"):
+                    self.network = LSTMPolicy(env.observation_space.shape, env.action_space.n)
+                    self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
+                                                       trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):

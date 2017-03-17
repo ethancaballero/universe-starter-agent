@@ -245,7 +245,11 @@ should be computed.
             inc_step = self.global_step.assign_add(tf.shape(pi.x)[0])
 
             # each worker has a different set of adam optimizer parameters
-            opt = tf.train.AdamOptimizer(1e-4)
+            if use_tf100_api:
+                with tf.variable_scope("Adam_ResourceVariables", use_resource=True):
+                    opt = tf.train.AdamOptimizer(1e-4)
+            else:
+                opt = tf.train.AdamOptimizer(1e-4)
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
